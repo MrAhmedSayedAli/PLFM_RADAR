@@ -8,10 +8,9 @@
 
 ![AERIS-10 Radar System](/8_Utils/3fb1dabf-2c6d-4b5d-b471-48bc461ce914.jpg)
 
-
 AERIS-10 is an open-source, low-cost 10.5 GHz phased array radar system featuring Pulse Linear Frequency Modulated (LFM) modulation. Available in two versions (3km and 20km range), it's designed for researchers, drone developers, and serious SDR enthusiasts who want to explore and experiment with phased array radar technology.
 
-![AERIS-10 Radar System](/8_Utils/Antenna_Array.jpg) 
+![AERIS-10 Antenna Array](/8_Utils/Antenna_Array.jpg)
 
 ## 📡 Overview
 
@@ -31,7 +30,7 @@ The AERIS-10 project aims to democratize radar technology by providing a fully o
 
 ## 🏗️ System Architecture
 
-![AERIS-10 Radar System](/8_Utils/RADAR_V6_V2.png)
+![AERIS-10 System Diagram](/8_Utils/RADAR_V6_V2.png)
 
 ### Hardware Components
 
@@ -87,8 +86,7 @@ The AERIS-10 main sub-systems are:
   - Slip-Ring
   - Stepper Motor and drivers
   - Cooling Fans
-  - Enclosure) 
-
+  - Enclosure
 
 ### Processing Pipeline
 
@@ -112,7 +110,7 @@ The AERIS-10 main sub-systems are:
    - Map integration
    - Radar control interface
 
-![AERIS-10 Radar System](/9_Firmware/9_3_GUI/GUI_V6.gif)
+![AERIS-10 GUI Demo](/8_Utils/GUI_V6.gif)
 
 ## 📊 Technical Specifications
 
@@ -123,12 +121,12 @@ The AERIS-10 main sub-systems are:
 | **Antenna** | 8x16 Patch Array | 32x16 Slotted Waveguide |
 | **Beam Steering** | Electronic (±45°) | Electronic (±45°) |
 | **Mechanical Scan** | 360° (stepper motor) | 360° (stepper motor) |
-| **Output Power** | ~1Wx16 | 10Wx16 (GaN amplifier) |
+| **Output Power** | ~1W×16 | 10W×16 (GaN amplifier) |
 | **Processing** | FPGA + STM32 | FPGA + STM32 |
 
 ## 🚀 Getting Started
 
-## 🧹 Repository File Placement Policy
+### 🧹 Repository File Placement Policy
 
 To keep the repository root clean and make artifacts easy to find, place generated files in the following locations:
 
@@ -141,7 +139,7 @@ To keep the repository root clean and make artifacts easy to find, place generat
 - **Reusable FPGA automation scripts (tracked):** `9_Firmware/9_2_FPGA/scripts/`
   - TCL flows, helper scripts used by build/bring-up
 
-Do not leave generated artifacts in the repository root.
+**Do not leave generated artifacts in the repository root.**
 
 ### Prerequisites
 
@@ -197,13 +195,39 @@ remain under the **MIT License** for maximum flexibility.
 ### Why This Change?
 Originally, the entire project used the MIT license. The community (special thanks to gmaynez!) pointed out that MIT lacks legal protections needed for physical hardware. The switch to CERN-OHL-P ensures the project is properly protected while maintaining the same permissive spirit.
 
-## Contact & Collaboration
+## 📚 Documentation
+
+Comprehensive documentation is available in the `/docs` folder and served via GitHub Pages at [https://NawfalMotii79.github.io/PLFM_RADAR/docs/](https://NawfalMotii79.github.io/PLFM_RADAR/docs/):
+
+- [System Architecture](/docs/architecture.html)
+- [Implementation Log](/docs/implementation-log.html)
+- [Hardware Bring-Up Guide](/docs/bring-up.html)
+- [Test Reports](/docs/reports.html)
+- [Release Notes](/docs/release-notes.html)
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guidelines](/CONTRIBUTING.md) for details.
+
+Areas where help is especially appreciated:
+- **RF Engineers**: Review designs, optimize antenna performance
+- **FPGA Developers**: Optimize signal processing pipeline
+- **Software Developers**: Enhance Python GUI and SDK
+- **Beta Testers**: University researchers, drone startups, advanced makers
+
+## 📞 Contact & Collaboration
+
 I welcome serious inquiries from researchers, engineers, and potential collaborators. However, due to the high volume of interest in this project, please understand that I cannot guarantee a response to every message.
 
-For technical questions or bug reports: Please open a GitHub issue so the whole community can benefit from the discussion.
+- **Technical questions or bug reports**: Please [open a GitHub issue](https://github.com/NawfalMotii79/PLFM_RADAR/issues) so the whole community can benefit from the discussion.
+- **Collaboration, licensing, or business inquiries**: 📧 nawfal.motii.33 [at] gmail [dot] com
 
-For collaboration, licensing, or business inquiries:
-📧 nawfal.motii.33 [at] gmail [dot] com
+## 💰 Sponsors
 
-## SPONSORS
-![AERIS-10 Radar System](/8_Utils/PCBWAY.jpg)
+![PCBWay Sponsor Logo](/8_Utils/PCBWAY.jpg)
+
+---
+
+**Star ⭐ this repository if you're interested in open-source radar technology!**
+
+*Note: This is an active development project. Some features are still in progress. Check the issues page for known limitations and upcoming features.*
