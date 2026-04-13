@@ -272,6 +272,7 @@ class RawIQReplayWorker(QThread):
         processor: RawIQFrameProcessor,
         host_processor: RadarProcessor | None = None,
         settings: RadarSettings | None = None,
+        gps_data_ref: GPSData | None = None,
         parent=None,
     ):
         super().__init__(parent)
@@ -279,6 +280,7 @@ class RawIQReplayWorker(QThread):
         self._processor = processor
         self._host_processor = host_processor
         self._settings = settings or RadarSettings()
+        self._gps = gps_data_ref
         self._running = False
         self._frame_count = 0
         self._error_count = 0
@@ -358,6 +360,7 @@ class RawIQReplayWorker(QThread):
             frame,
             self._settings.range_resolution,
             self._settings.velocity_resolution,
+            gps=self._gps,
         )
 
         # Clustering + tracking

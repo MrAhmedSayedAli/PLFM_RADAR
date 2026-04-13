@@ -176,6 +176,7 @@ class RadarDashboard(QMainWindow):
         # State
         self._running = False
         self._demo_mode = False
+        self._replay_status_override: str | None = None  # "playing"/"paused"
         self._start_time = time.time()
         self._current_frame: RadarFrame | None = None
         self._last_status: StatusResponse | None = None
@@ -551,12 +552,22 @@ class RadarDashboard(QMainWindow):
         self._alt_spin.setValue(0.0)
         self._alt_spin.setSuffix(" m")
 
+        self._heading_spin = QDoubleSpinBox()
+        self._heading_spin.setRange(0, 360)
+        self._heading_spin.setDecimals(1)
+        self._heading_spin.setValue(0.0)
+        self._heading_spin.setSuffix("\u00b0")
+        self._heading_spin.setWrapping(True)
+        self._heading_spin.valueChanged.connect(self._on_position_changed)
+
         pos_layout.addWidget(QLabel("Latitude:"), 0, 0)
         pos_layout.addWidget(self._lat_spin, 0, 1)
         pos_layout.addWidget(QLabel("Longitude:"), 1, 0)
         pos_layout.addWidget(self._lon_spin, 1, 1)
         pos_layout.addWidget(QLabel("Altitude:"), 2, 0)
         pos_layout.addWidget(self._alt_spin, 2, 1)
+        pos_layout.addWidget(QLabel("Heading:"), 3, 0)
+        pos_layout.addWidget(self._heading_spin, 3, 1)
 
         sb_layout.addWidget(pos_group)
 
@@ -1318,6 +1329,7 @@ class RadarDashboard(QMainWindow):
             self._radar_worker.targetsUpdated.connect(self._on_radar_targets)
             self._radar_worker.statsUpdated.connect(self._on_radar_stats)
             self._radar_worker.errorOccurred.connect(self._on_worker_error)
+            self._radar_worker.finished.connect(self._on_worker_finished)
             self._radar_worker.start()
 
             # Optionally start GPS worker
@@ -1350,6 +1362,16 @@ class RadarDashboard(QMainWindow):
 
     def _stop_radar(self):
         self._running = False
+        self._replay_status_override = None
+
+        # Stop demo simulator if active (prevents cross-mode interference)
+        if self._simulator:
+            self._simulator.stop()
+            self._simulator = None
+            self._demo_mode = False
+            self._demo_btn_main.setText("Start Demo")
+            self._demo_btn_map.setText("Start Demo")
+            self._demo_btn_map.setChecked(False)
 
         if self._radar_worker:
             self._radar_worker.stop()
@@ -1381,6 +1403,9 @@ class RadarDashboard(QMainWindow):
         self._stop_btn.setEnabled(False)
         self._mode_combo.setEnabled(True)
         self._playback_frame.setVisible(False)
+        self._pb_play_btn.setText("Play")
+        self._pb_frame_label.setText("Frame: 0 / 0")
+        self._pb_file_label.setText("")
         self._status_label_main.setText("Status: Radar stopped")
         self._sb_status.setText("Radar stopped")
         self._sb_mode.setText("Idle")
@@ -1458,12 +1483,14 @@ class RadarDashboard(QMainWindow):
                 processor=self._iq_processor,
                 host_processor=self._processor,
                 settings=self._settings,
+                gps_data_ref=self._radar_position,
             )
             self._replay_worker.frameReady.connect(self._on_frame_ready)
             self._replay_worker.statusReceived.connect(self._on_status_received)
             self._replay_worker.targetsUpdated.connect(self._on_radar_targets)
             self._replay_worker.statsUpdated.connect(self._on_radar_stats)
             self._replay_worker.errorOccurred.connect(self._on_worker_error)
+            self._replay_worker.finished.connect(self._on_worker_finished)
             self._replay_worker.playbackStateChanged.connect(
                 self._on_playback_state_changed)
             self._replay_worker.frameIndexChanged.connect(
@@ -1474,6 +1501,7 @@ class RadarDashboard(QMainWindow):
 
             # UI state
             self._running = True
+            self._replay_status_override = "paused"
             self._start_time = time.time()
             self._frame_count = 0
             self._start_btn.setEnabled(False)
@@ -1491,6 +1519,13 @@ class RadarDashboard(QMainWindow):
             logger.info(f"Raw IQ Replay started: {npy_path}")
 
         except (ValueError, OSError) as e:
+            # Clean up any partially-created objects
+            if self._replay_worker is not None:
+                self._replay_worker.stop()
+                self._replay_worker.wait(1000)
+                self._replay_worker = None
+            self._replay_controller = None
+            self._iq_processor = None
             QMessageBox.critical(self, "Error",
                                  f"Failed to load raw IQ file:\n{e}")
             logger.error(f"Raw IQ load error: {e}")
@@ -1526,11 +1561,13 @@ class RadarDashboard(QMainWindow):
     def _on_playback_state_changed(self, state_str: str):
         if state_str == "playing":
             self._pb_play_btn.setText("Pause")
+            self._replay_status_override = "playing"
         elif state_str == "paused":
             self._pb_play_btn.setText("Play")
+            self._replay_status_override = "paused"
         elif state_str == "stopped":
-            self._pb_play_btn.setText("Play")
-            self._status_label_main.setText("Status: Replay finished")
+            self._replay_status_override = None
+            self._stop_radar()
 
     @pyqtSlot(int, int)
     def _on_frame_index_changed(self, current: int, total: int):
@@ -1547,8 +1584,9 @@ class RadarDashboard(QMainWindow):
         self._simulator.targetsUpdated.connect(self._on_demo_targets)
         self._simulator.start(500)
         self._demo_mode = True
-        self._sb_mode.setText("Demo Mode")
-        self._sb_status.setText("Demo mode active")
+        if not self._running:
+            self._sb_mode.setText("Demo Mode")
+            self._sb_status.setText("Demo mode active")
         self._demo_btn_main.setText("Stop Demo")
         self._demo_btn_map.setText("Stop Demo")
         self._demo_btn_map.setChecked(True)
@@ -1566,9 +1604,13 @@ class RadarDashboard(QMainWindow):
         elif isinstance(self._connection, ReplayConnection):
             mode = "Replay"
         else:
-            mode = "Live"
+            # Use mode combo text for Mock vs Live distinction
+            mode = self._mode_combo.currentText()
+            if "Mock" not in mode and "Live" not in mode:
+                mode = "Live"
         self._sb_mode.setText(mode)
-        self._sb_status.setText("Demo stopped")
+        if not self._running:
+            self._sb_status.setText("Demo stopped")
         self._demo_btn_main.setText("Start Demo")
         self._demo_btn_map.setText("Start Demo")
         self._demo_btn_map.setChecked(False)
@@ -1619,6 +1661,12 @@ class RadarDashboard(QMainWindow):
     @pyqtSlot(str)
     def _on_worker_error(self, msg: str):
         logger.error(f"Worker error: {msg}")
+
+    def _on_worker_finished(self):
+        """Handle unexpected worker thread exit — recover UI to stopped state."""
+        if self._running:
+            logger.warning("Worker thread exited unexpectedly, resetting UI")
+            self._stop_radar()
 
     @pyqtSlot(object)
     def _on_gps_received(self, gps: GPSData):
@@ -1800,6 +1848,7 @@ class RadarDashboard(QMainWindow):
         self._radar_position.latitude = self._lat_spin.value()
         self._radar_position.longitude = self._lon_spin.value()
         self._radar_position.altitude = self._alt_spin.value()
+        self._radar_position.heading = self._heading_spin.value()
         self._map_widget.set_radar_position(self._radar_position)
         if self._simulator:
             self._simulator.set_radar_position(self._radar_position)
@@ -1874,10 +1923,17 @@ class RadarDashboard(QMainWindow):
             if self._running:
                 det = (self._current_frame.detection_count
                        if self._current_frame else 0)
-                self._status_label_main.setText(
-                    f"Status: Running \u2014 Frames: {self._frame_count} "
-                    f"\u2014 Detections: {det}"
-                )
+                # Preserve replay-specific status (paused/playing)
+                if self._replay_status_override == "paused":
+                    self._status_label_main.setText(
+                        f"Status: Raw IQ Replay (paused) \u2014 "
+                        f"Frames: {self._frame_count} \u2014 Detections: {det}"
+                    )
+                else:
+                    self._status_label_main.setText(
+                        f"Status: Running \u2014 Frames: {self._frame_count} "
+                        f"\u2014 Detections: {det}"
+                    )
 
             # Diagnostics values
             self._update_diagnostics()
